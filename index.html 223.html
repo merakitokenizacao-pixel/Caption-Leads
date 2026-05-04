@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meraki CRM — Lead Prospector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ DESIGN TOKENS ============ */
+  :root {
+    --bg: #0A0A0B;
+    --surface: #111114;
+    --surface-2: #16161A;
+    --surface-3: #1C1C21;
+    --border: #232329;
+    --border-strong: #2E2E36;
+    --text: #F4F4F5;
+    --text-muted: #A1A1AA;
+    --text-subtle: #71717A;
+    --accent: #4F8DEB;
+    --accent-glow: rgba(79, 141, 235, 0.15);
+    --accent-hover: #6BA1F0;
+    --status-new: #71717A;
+    --status-contacted: #4F8DEB;
+    --status-qualified: #F59E0B;
+    --status-meeting: #A78BFA;
+    --status-converted: #10B981;
+    --status-lost: #EF4444;
+    --status-disqualified: #52525B;
+    --danger: #EF4444;
+    --success: #10B981;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --radius-lg: 12px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.4);
+    --shadow-strong: 0 12px 40px rgba(0,0,0,0.6);
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-subtle); }
+
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, select, textarea { font-family: inherit; color: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ============ LAYOUT ============ */
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    height: 100vh;
+  }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 14px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent) 0%, #A78BFA 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: white;
+    font-size: 16px;
+  }
+  .brand-name {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .brand-subtitle {
+    font-size: 11px;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 1px;
+  }
+
+  .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-section-title {
+    font-size: 10px;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 16px 10px 6px;
+    font-weight: 600;
+  }
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+    font-weight: 500;
+    font-size: 13.5px;
+  }
+  .nav-link:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .nav-link.active {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+  .nav-link.active::before {
+    content: '';
+    width: 3px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+    position: absolute;
+    margin-left: -10px;
+  }
+  .nav-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ============ MAIN ============ */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .topbar h1 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .topbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .content {
+    flex: 1;
+    overflow: auto;
+    padding: 28px;
+  }
+
+  /* ============ COMPONENTS ============ */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 13px;
+    transition: all var(--transition);
+    border: 1px solid transparent;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 0 0 4px var(--accent-glow);
+  }
+  .btn-secondary {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover {
+    background: var(--surface-3);
+    border-color: var(--border-strong);
+  }
+  .btn-ghost {
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+  .btn-danger {
+    background: transparent;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover { background: rgba(239, 68, 68, 0.1); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .input, .select, .textarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13px;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .input:focus, .select:focus, .textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .textarea { resize: vertical; min-height: 80px; }
+
+  .label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field-help {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    margin-top: 4px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+
+  /* Status badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .badge.status-new { color: var(--status-new); }
+  .badge.status-contacted { color: var(--status-contacted); border-color: rgba(79,141,235,0.3); }
+  .badge.status-qualified { color: var(--status-qualified); border-color: rgba(245,158,11,0.3); }
+  .badge.status-meeting_scheduled { color: var(--status-meeting); border-color: rgba(167,139,250,0.3); }
+  .badge.status-converted { color: var(--status-converted); border-color: rgba(16,185,129,0.3); }
+  .badge.status-lost { color: var(--status-lost); border-color: rgba(239,68,68,0.3); }
+  .badge.status-disqualified { color: var(--status-disqualified); }
+
+  /* Loading */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  .spinner-lg { width: 32px; height: 32px; border-width: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-state, .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-subtle);
+    gap: 12px;
+  }
+  .empty-state-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--surface-2);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+  }
+  .empty-state-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .empty-state-desc {
+    font-size: 13px;
+    text-align: center;
+    max-width: 360px;
+  }
+
+  /* ============ DASHBOARD ============ */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 100px; height: 100px;
+    background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .stat-meta {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-top: 4px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .funnel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .funnel-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 50px;
+    align-items: center;
+    gap: 12px;
+  }
+  .funnel-label {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .funnel-bar {
+    background: var(--surface-2);
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+  .funnel-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+    transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .funnel-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  /* ============ LEADS TABLE ============ */
+  .filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filters .input,
+  .filters .select {
+    width: auto;
+    min-width: 160px;
+  }
+  .filters .input-search {
+    flex: 1;
+    min-width: 240px;
+    padding-left: 36px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AA' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+  }
+
+  .table-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .table th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .table tr:last-child td { border-bottom: none; }
+  .table tr.row-clickable { cursor: pointer; transition: background var(--transition); }
+  .table tr.row-clickable:hover { background: var(--surface-2); }
+
+  .lead-name {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .lead-category {
+    color: var(--text-subtle);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  .rating-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .rating-pill svg { color: var(--status-qualified); }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+  }
+  .pagination-info {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .pagination-controls {
+    display: flex;
+    gap: 4px;
+  }
+
+  /* Status select inline */
+  .status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 28px 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AA' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+
+  /* ============ KANBAN ============ */
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(260px, 1fr));
+    gap: 12px;
+    height: calc(100vh - 60px - 56px);
+    overflow-x: auto;
+  }
+  .kanban-column {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    min-width: 260px;
+  }
+  .kanban-header {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .kanban-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .kanban-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-subtle);
+    background: var(--surface-2);
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+  .kanban-cards {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100px;
+  }
+  .kanban-cards.drop-target {
+    background: var(--accent-glow);
+    border-radius: var(--radius);
+  }
+  .kanban-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    cursor: grab;
+    transition: all var(--transition);
+  }
+  .kanban-card:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-3);
+  }
+  .kanban-card.dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+  }
+  .kanban-card-name {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .kanban-card-meta {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .kanban-card-meta span { display: inline-flex; align-items: center; gap: 3px; }
+
+  /* ============ NEW SEARCH ============ */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+  }
+  @media (max-width: 1100px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .slider-row input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  .slider-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--surface-2);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    min-width: 50px;
+    text-align: center;
+  }
+
+  .search-history-row {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .search-history-row:last-child { border-bottom: none; }
+  .search-history-info { flex: 1; min-width: 0; }
+  .search-history-query {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .search-history-meta {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+  }
+
+  /* ============ DRAWER ============ */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed;
+    top: 0; right: 0;
+    width: 540px;
+    max-width: 100vw;
+    height: 100vh;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 101;
+    transform: translateX(100%);
+    transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-strong);
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .drawer-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .drawer-close {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    flex-shrink: 0;
+  }
+  .drawer-close:hover { background: var(--surface-2); color: var(--text); }
+
+  .drawer-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+  }
+  .drawer-tab {
+    padding: 12px 14px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+    transition: all var(--transition);
+  }
+  .drawer-tab:hover { color: var(--text); }
+  .drawer-tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  .info-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    align-items: start;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .info-value {
+    font-size: 13px;
+    word-break: break-word;
+  }
+  .info-value.empty { color: var(--text-subtle); font-style: italic; }
+
+  .interaction {
+    padding: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+  }
+  .interaction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .interaction-type {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+  }
+  .interaction-time {
+    font-size: 11px;
+    color: var(--text-subtle);
+  }
+  .interaction-content {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+  }
+
+  /* Toast */
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--surface-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 280px;
+    max-width: 400px;
+    animation: slideInRight 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toast.success { border-left: 3px solid var(--success); }
+  .toast.error { border-left: 3px solid var(--danger); }
+  .toast.info { border-left: 3px solid var(--accent); }
+  .toast-message {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Setup screen */
+  .setup-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    padding: 20px;
+  }
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 520px;
+    width: 100%;
+  }
+  .setup-card h2 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .setup-card .subtitle {
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    font-size: 13.5px;
+  }
+
+  /* Animations */
+  .fade-in {
+    animation: fadeIn 300ms ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ============ AI INSIGHTS / SCORE ============ */
+  .score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 12px;
+    border: 1px solid;
+    min-width: 44px;
+    justify-content: center;
+  }
+  .score-hot   { background: rgba(16,185,129,0.1); color: #10B981; border-color: rgba(16,185,129,0.3); }
+  .score-warm  { background: rgba(79,141,235,0.1); color: var(--accent); border-color: rgba(79,141,235,0.3); }
+  .score-mild  { background: rgba(245,158,11,0.1); color: var(--status-qualified); border-color: rgba(245,158,11,0.3); }
+  .score-cold  { background: rgba(113,113,122,0.1); color: var(--text-muted); border-color: rgba(113,113,122,0.3); }
+  .score-none  { color: var(--text-subtle); font-size: 11px; font-weight: 500; }
+
+  .score-bar {
+    background: var(--surface-2);
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .insights-section {
+    margin-bottom: 22px;
+  }
+  .insights-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .insights-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .insights-score-card {
+    background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    margin-bottom: 22px;
+  }
+  .insights-score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .insights-score-big {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .insights-score-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .insights-meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .meta-tag {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .meta-tag-strong {
+    background: var(--accent-glow);
+    border-color: rgba(79,141,235,0.3);
+    color: var(--accent);
+  }
+
+  .bullet-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .bullet-list li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    line-height: 1.55;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .bullet-list li:last-child { border-bottom: none; }
+  .bullet-list li::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+  .bullet-list.hooks li::before { background: var(--status-converted); }
+  .bullet-list.flags li::before { background: var(--danger); }
+
+  .qualify-btn {
+    background: linear-gradient(135deg, var(--accent) 0%, #A78BFA 100%);
+    color: white;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    font-weight: 600;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all var(--transition);
+  }
+  .qualify-btn:hover { box-shadow: 0 0 0 4px var(--accent-glow); transform: translateY(-1px); }
+  .qualify-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, rgba(79,141,235,0.15) 0%, rgba(167,139,250,0.15) 100%);
+    border: 1px solid rgba(167,139,250,0.3);
+    color: #C4B5FD;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="drawer-root"></div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+/* ============================================
+   STATE & CONFIG
+   ============================================ */
+const STATUSES = [
+  { value: 'new', label: 'Novo' },
+  { value: 'contacted', label: 'Contatado' },
+  { value: 'qualified', label: 'Qualificado' },
+  { value: 'meeting_scheduled', label: 'Reunião agendada' },
+  { value: 'converted', label: 'Convertido' },
+  { value: 'lost', label: 'Perdido' },
+  { value: 'disqualified', label: 'Desqualificado' },
+];
+
+const KANBAN_STATUSES = ['new', 'contacted', 'qualified', 'meeting_scheduled', 'converted'];
+
+// Credenciais hardcoded para desenvolvimento (Meraki dev environment)
+// TODO: ao virar produção, mover pra Supabase Auth + RLS, e remover essas constantes daqui
+const DEFAULT_CONFIG = {
+  supabaseUrl: 'https://pgcahhkbamaadlingsuq.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBnY2FoaGtiYW1hYWRsaW5nc3VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NTk5MDYsImV4cCI6MjA5MzEzNTkwNn0.454jr-R7dvPpkSL87hoVq9bMutr1NhMop-PFflU6tbY',
+  webhookUrl: 'https://n8n-n8n.2ghreo.easypanel.host/webhook/scrape-leads',
+  webhookApiKey: 'meraki_2026_kjs8df9s',
+  qualifyWebhookUrl: 'https://n8n-n8n.2ghreo.easypanel.host/webhook/qualify-lead',
+};
+
+// Carrega do localStorage (se o usuário tiver editado em Configurações),
+// caso contrário usa os defaults hardcoded. Faz merge pra garantir que campos novos
+// tenham valor mesmo se o config salvo no localStorage for de versão anterior.
+const savedConfig = JSON.parse(localStorage.getItem('crm_config') || 'null');
+let config = { ...DEFAULT_CONFIG, ...(savedConfig || {}) };
+if (!savedConfig || JSON.stringify(savedConfig) !== JSON.stringify(config)) {
+  localStorage.setItem('crm_config', JSON.stringify(config));
+}
+let currentRoute = 'dashboard';
+let leadsCache = [];
+let searchesCache = [];
+
+/* ============================================
+   SUPABASE CLIENT
+   ============================================ */
+async function sb(method, path, body) {
+  if (!config) throw new Error('Configuração não definida');
+  const url = `${config.supabaseUrl.replace(/\/$/, '')}/rest/v1${path}`;
+  const headers = {
+    'apikey': config.supabaseAnonKey,
+    'Authorization': `Bearer ${config.supabaseAnonKey}`,
+    'Content-Type': 'application/json',
+    'Prefer': method === 'POST' ? 'return=representation' :
+              method === 'PATCH' ? 'return=representation' : undefined,
+  };
+  Object.keys(headers).forEach(k => headers[k] === undefined && delete headers[k]);
+  const res = await fetch(url, {
+    method, headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Supabase ${res.status}: ${text}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+/* ============================================
+   ICONS (inline SVG)
+   ============================================ */
+const ICON = {
+  dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  kanban: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="14"/><rect x="11" y="3" width="6" height="9"/><rect x="19" y="3" width="2" height="11"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="11" height="11"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+  empty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
+};
+
+/* ============================================
+   ROUTER
+   ============================================ */
+function navigate(route) {
+  currentRoute = route;
+  window.location.hash = route;
+  render();
+}
+
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.slice(1) || 'dashboard';
+  if (hash !== currentRoute) {
+    currentRoute = hash;
+    render();
+  }
+});
+
+/* ============================================
+   TOASTS
+   ============================================ */
+function toast(message, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<div class="toast-message">${escapeHtml(message)}</div>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 200ms';
+    setTimeout(() => el.remove(), 200);
+  }, 3500);
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const date = new Date(d);
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtPhone(p) {
+  if (!p) return '';
+  return p.replace(/^\+55\s?/, '');
+}
+
+function statusLabel(s) {
+  return STATUSES.find(x => x.value === s)?.label || s;
+}
+
+function scoreClass(score) {
+  if (score == null) return 'score-none';
+  if (score >= 80) return 'score-hot';
+  if (score >= 60) return 'score-warm';
+  if (score >= 40) return 'score-mild';
+  return 'score-cold';
+}
+
+function scoreColor(score) {
+  if (score == null) return 'var(--text-subtle)';
+  if (score >= 80) return '#10B981';
+  if (score >= 60) return 'var(--accent)';
+  if (score >= 40) return 'var(--status-qualified)';
+  return 'var(--text-muted)';
+}
+
+function renderScorePill(score) {
+  if (score == null) return '<span class="score-none">—</span>';
+  return `<span class="score-pill ${scoreClass(score)}">${score}</span>`;
+}
+
+function sizeLabel(s) {
+  return ({ small: 'Pequena', medium: 'Média', large: 'Grande' })[s] || s || '—';
+}
+
+function maturityLabel(m) {
+  return ({ low: 'Maturidade baixa', medium: 'Maturidade média', high: 'Maturidade alta' })[m] || m || '—';
+}
+
+/* ============================================
+   SETUP SCREEN
+   ============================================ */
+function renderSetup() {
+  document.getElementById('app').innerHTML = `
+    <div class="setup-screen">
+      <div class="setup-card">
+        <h2>Configurar Meraki CRM</h2>
+        <p class="subtitle">Conecte sua instância Supabase e o webhook do n8n. Esses dados ficam salvos só no seu navegador.</p>
+
+        <div class="field">
+          <label class="label">Supabase Project URL</label>
+          <input class="input" id="cfg-url" placeholder="https://xxxxx.supabase.co" />
+          <div class="field-help">Project Settings → Data API → Project URL</div>
+        </div>
+
+        <div class="field">
+          <label class="label">Supabase Anon Public Key</label>
+          <input class="input" id="cfg-key" placeholder="eyJhbGciOi..." />
+          <div class="field-help">Project Settings → API Keys → anon public (NÃO use a service role)</div>
+        </div>
+
+        <div class="field">
+          <label class="label">n8n Webhook URL</label>
+          <input class="input" id="cfg-webhook" placeholder="https://n8n.exemplo.com/webhook/scrape-leads" />
+          <div class="field-help">Use a Production URL (não a Test URL)</div>
+        </div>
+
+        <div class="field">
+          <label class="label">n8n Webhook API Key</label>
+          <input class="input" id="cfg-apikey" placeholder="meraki_2026_..." />
+          <div class="field-help">A string que você definiu no Header Auth do nó Webhook</div>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; padding: 11px; justify-content: center; margin-top: 8px;" onclick="saveConfig()">
+          Salvar e continuar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+window.saveConfig = function() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  const webhook = document.getElementById('cfg-webhook').value.trim();
+  const qualifyWebhook = document.getElementById('cfg-qualify-webhook')?.value.trim() || config.qualifyWebhookUrl;
+  const apikey = document.getElementById('cfg-apikey').value.trim();
+  if (!url || !key) { toast('URL e Anon Key do Supabase são obrigatórios', 'error'); return; }
+  config = { supabaseUrl: url, supabaseAnonKey: key, webhookUrl: webhook, qualifyWebhookUrl: qualifyWebhook, webhookApiKey: apikey };
+  localStorage.setItem('crm_config', JSON.stringify(config));
+  toast('Configuração salva!', 'success');
+  render();
+};
+
+/* ============================================
+   LAYOUT
+   ============================================ */
+function renderLayout(content, title) {
+  document.getElementById('app').innerHTML = `
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">M</div>
+          <div>
+            <div class="brand-name">Meraki</div>
+            <div class="brand-subtitle">CRM</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <a class="nav-link ${currentRoute === 'dashboard' ? 'active' : ''}" onclick="navigate('dashboard')">${ICON.dashboard} Dashboard</a>
+          <a class="nav-link ${currentRoute === 'leads' ? 'active' : ''}" onclick="navigate('leads')">${ICON.list} Leads</a>
+          <a class="nav-link ${currentRoute === 'kanban' ? 'active' : ''}" onclick="navigate('kanban')">${ICON.kanban} Kanban</a>
+
+          <div class="nav-section-title">Aquisição</div>
+          <a class="nav-link ${currentRoute === 'nova-busca' ? 'active' : ''}" onclick="navigate('nova-busca')">${ICON.search} Nova Busca</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a class="nav-link ${currentRoute === 'config' ? 'active' : ''}" onclick="navigate('config')">${ICON.settings} Configurações</a>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <h1>${escapeHtml(title)}</h1>
+          <div class="topbar-actions" id="topbar-actions"></div>
+        </header>
+        <div class="content fade-in" id="content">${content}</div>
+      </main>
+    </div>
+  `;
+}
+
+/* ============================================
+   PAGE: DASHBOARD
+   ============================================ */
+async function renderDashboard() {
+  renderLayout('<div class="loading-state"><div class="spinner spinner-lg"></div><div>Carregando dashboard...</div></div>', 'Dashboard');
+
+  try {
+    const leads = await sb('GET', '/leads?select=id,status,created_at&order=created_at.desc');
+    leadsCache = leads;
+
+    const total = leads.length;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const newToday = leads.filter(l => new Date(l.created_at) >= today).length;
+    const inConvo = leads.filter(l => ['contacted','qualified','meeting_scheduled'].includes(l.status)).length;
+    const converted = leads.filter(l => l.status === 'converted').length;
+
+    const byStatus = {};
+    STATUSES.forEach(s => { byStatus[s.value] = leads.filter(l => l.status === s.value).length; });
+    const max = Math.max(...Object.values(byStatus), 1);
+
+    const recent = leads.slice(0, 8);
+    let recentHtml = '<div class="empty-state"><div class="empty-state-icon">' + ICON.empty + '</div><div class="empty-state-desc">Nenhum lead ainda</div></div>';
+    if (recent.length > 0) {
+      const recentDetail = await sb('GET', `/leads?select=id,name,city,category,status,created_at&order=created_at.desc&limit=8`);
+      recentHtml = recentDetail.map(l => `
+        <div class="search-history-row" onclick="openLeadDrawer('${l.id}')" style="cursor: pointer;">
+          <div class="search-history-info">
+            <div class="search-history-query">${escapeHtml(l.name)}</div>
+            <div class="search-history-meta">${escapeHtml(l.category || '—')} · ${escapeHtml(l.city || '—')}</div>
+          </div>
+          <span class="badge status-${l.status}"><span class="badge-dot"></span>${escapeHtml(statusLabel(l.status))}</span>
+        </div>
+      `).join('');
+    }
+
+    const content = `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total de Leads</div>
+          <div class="stat-value">${total}</div>
+          <div class="stat-meta">desde o início</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Novos hoje</div>
+          <div class="stat-value">${newToday}</div>
+          <div class="stat-meta">capturados nas últimas 24h</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Em Conversação</div>
+          <div class="stat-value">${inConvo}</div>
+          <div class="stat-meta">contactados, qualificados ou em reunião</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Convertidos</div>
+          <div class="stat-value">${converted}</div>
+          <div class="stat-meta">fechados com sucesso</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="card">
+          <div class="panel-title">Distribuição por Status</div>
+          <div class="funnel">
+            ${STATUSES.map(s => `
+              <div class="funnel-row">
+                <div class="funnel-label">${escapeHtml(s.label)}</div>
+                <div class="funnel-bar"><div class="funnel-bar-fill" style="width: ${(byStatus[s.value] / max * 100)}%"></div></div>
+                <div class="funnel-count">${byStatus[s.value]}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="panel-title">Leads Recentes</div>
+          ${recentHtml}
+        </div>
+      </div>
+    `;
+    document.getElementById('content').innerHTML = content;
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-title">Erro ao carregar</div><div class="empty-state-desc">${escapeHtml(e.message)}</div></div></div>`;
+  }
+}
+
+/* ============================================
+   PAGE: LEADS TABLE
+   ============================================ */
+let leadsState = { search: '', city: '', category: '', status: '', sortBy: 'created_at', page: 1, pageSize: 25 };
+
+async function renderLeads() {
+  renderLayout('<div class="loading-state"><div class="spinner spinner-lg"></div></div>', 'Leads');
+
+  try {
+    const all = await sb('GET', '/leads?select=*&order=created_at.desc');
+    leadsCache = all;
+    renderLeadsTable();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-title">Erro</div><div class="empty-state-desc">${escapeHtml(e.message)}</div></div></div>`;
+  }
+}
+
+function renderLeadsTable() {
+  const cities = [...new Set(leadsCache.map(l => l.city).filter(Boolean))].sort();
+  const categories = [...new Set(leadsCache.map(l => l.category).filter(Boolean))].sort();
+
+  let filtered = leadsCache.filter(l => {
+    if (leadsState.search) {
+      const q = leadsState.search.toLowerCase();
+      const hay = `${l.name||''} ${l.address||''} ${l.phone||''} ${l.website||''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (leadsState.city && l.city !== leadsState.city) return false;
+    if (leadsState.category && l.category !== leadsState.category) return false;
+    if (leadsState.status && l.status !== leadsState.status) return false;
+    return true;
+  });
+
+  // Sort
+  if (leadsState.sortBy === 'score') {
+    filtered.sort((a, b) => (b.last_score ?? -1) - (a.last_score ?? -1));
+  } else {
+    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / leadsState.pageSize));
+  if (leadsState.page > totalPages) leadsState.page = totalPages;
+  const start = (leadsState.page - 1) * leadsState.pageSize;
+  const pageItems = filtered.slice(start, start + leadsState.pageSize);
+
+  const filtersHtml = `
+    <div class="filters">
+      <input class="input input-search" placeholder="Buscar por nome, endereço, telefone..." value="${escapeHtml(leadsState.search)}" oninput="updateFilter('search', this.value)" />
+      <select class="select" onchange="updateFilter('city', this.value)">
+        <option value="">Todas cidades</option>
+        ${cities.map(c => `<option ${c===leadsState.city?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+      </select>
+      <select class="select" onchange="updateFilter('category', this.value)">
+        <option value="">Todas categorias</option>
+        ${categories.map(c => `<option ${c===leadsState.category?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+      </select>
+      <select class="select" onchange="updateFilter('status', this.value)">
+        <option value="">Todos status</option>
+        ${STATUSES.map(s => `<option value="${s.value}" ${s.value===leadsState.status?'selected':''}>${escapeHtml(s.label)}</option>`).join('')}
+      </select>
+      <select class="select" onchange="updateFilter('sortBy', this.value)">
+        <option value="created_at" ${leadsState.sortBy==='created_at'?'selected':''}>Mais recentes</option>
+        <option value="score" ${leadsState.sortBy==='score'?'selected':''}>🧠 Maior score (IA)</option>
+      </select>
+    </div>
+  `;
+
+  let rowsHtml = '';
+  if (pageItems.length === 0) {
+    rowsHtml = `<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">${ICON.empty}</div><div class="empty-state-title">Nenhum lead encontrado</div><div class="empty-state-desc">Tente ajustar os filtros ou rode uma nova busca.</div></div></td></tr>`;
+  } else {
+    rowsHtml = pageItems.map(l => `
+      <tr class="row-clickable" onclick="openLeadDrawer('${l.id}')">
+        <td>${renderScorePill(l.last_score)}</td>
+        <td>
+          <div class="lead-name">${escapeHtml(l.name)}</div>
+          <div class="lead-category">${escapeHtml(l.category || '—')}</div>
+        </td>
+        <td>${escapeHtml(l.city || '—')}${l.state ? ` <span style="color:var(--text-subtle)">· ${escapeHtml(l.state)}</span>` : ''}</td>
+        <td class="mono" style="font-size:12.5px">${escapeHtml(fmtPhone(l.phone) || '—')}</td>
+        <td>${l.rating ? `<span class="rating-pill">${ICON.star} ${l.rating} <span style="color:var(--text-subtle); font-weight:400">(${l.reviews_count||0})</span></span>` : '—'}</td>
+        <td onclick="event.stopPropagation()">
+          <select class="status-select" onchange="changeStatus('${l.id}', this.value)" style="color: var(--status-${l.status})">
+            ${STATUSES.map(s => `<option value="${s.value}" ${s.value===l.status?'selected':''}>${escapeHtml(s.label)}</option>`).join('')}
+          </select>
+        </td>
+        <td style="color:var(--text-subtle); font-size:12px">${fmtDate(l.created_at)}</td>
+      </tr>
+    `).join('');
+  }
+
+  const content = `
+    ${filtersHtml}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width: 70px"><span class="ai-badge">IA</span></th>
+            <th>Lead</th>
+            <th>Cidade</th>
+            <th>Telefone</th>
+            <th>Rating</th>
+            <th>Status</th>
+            <th>Adicionado</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="pagination">
+        <div class="pagination-info">${total} ${total === 1 ? 'lead' : 'leads'} · Página ${leadsState.page} de ${totalPages}</div>
+        <div class="pagination-controls">
+          <button class="btn btn-secondary" ${leadsState.page<=1?'disabled':''} onclick="changePage(${leadsState.page-1})">Anterior</button>
+          <button class="btn btn-secondary" ${leadsState.page>=totalPages?'disabled':''} onclick="changePage(${leadsState.page+1})">Próxima</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('content').innerHTML = content;
+}
+
+window.updateFilter = function(key, value) {
+  leadsState[key] = value;
+  leadsState.page = 1;
+  renderLeadsTable();
+};
+
+window.changePage = function(p) {
+  leadsState.page = p;
+  renderLeadsTable();
+  document.getElementById('content').scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.changeStatus = async function(id, status) {
+  try {
+    await sb('PATCH', `/leads?id=eq.${id}`, { status });
+    const lead = leadsCache.find(l => l.id === id);
+    if (lead) lead.status = status;
+    // Log da mudança
+    await sb('POST', '/lead_interactions', {
+      lead_id: id,
+      type: 'status_change',
+      content: `Status alterado para "${statusLabel(status)}"`,
+      metadata: { new_status: status },
+    });
+    toast('Status atualizado', 'success');
+    renderLeadsTable();
+  } catch (e) {
+    toast('Erro ao atualizar: ' + e.message, 'error');
+  }
+};
+
+/* ============================================
+   PAGE: KANBAN
+   ============================================ */
+async function renderKanban() {
+  renderLayout('<div class="loading-state"><div class="spinner spinner-lg"></div></div>', 'Pipeline (Kanban)');
+  try {
+    const leads = await sb('GET', '/leads?select=*&order=updated_at.desc');
+    leadsCache = leads;
+    drawKanban();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="empty-state"><div class="empty-state-title">Erro</div><div class="empty-state-desc">${escapeHtml(e.message)}</div></div></div>`;
+  }
+}
+
+function drawKanban() {
+  const cols = KANBAN_STATUSES.map(status => {
+    const items = leadsCache.filter(l => l.status === status);
+    const cards = items.map(l => `
+      <div class="kanban-card" draggable="true" data-id="${l.id}"
+        ondragstart="onDragStart(event)" ondragend="onDragEnd(event)"
+        onclick="openLeadDrawer('${l.id}')">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px; margin-bottom: 4px;">
+          <div class="kanban-card-name" style="margin-bottom: 0;">${escapeHtml(l.name)}</div>
+          ${l.last_score != null ? renderScorePill(l.last_score) : ''}
+        </div>
+        <div class="kanban-card-meta">
+          ${l.city ? `<span>📍 ${escapeHtml(l.city)}</span>` : ''}
+          ${l.rating ? `<span>${ICON.star} ${l.rating}</span>` : ''}
+          ${l.phone ? `<span class="mono">${escapeHtml(fmtPhone(l.phone))}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+    const labelObj = STATUSES.find(s => s.value === status);
+    return `
+      <div class="kanban-column">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color: var(--status-${status})">
+            <span class="badge-dot" style="background: var(--status-${status})"></span>
+            ${escapeHtml(labelObj.label)}
+          </div>
+          <div class="kanban-count">${items.length}</div>
+        </div>
+        <div class="kanban-cards" data-status="${status}"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          ${cards || '<div style="color: var(--text-subtle); font-size: 12px; padding: 14px; text-align: center;">Vazio</div>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `<div class="kanban">${cols}</div>`;
+}
+
+let draggedId = null;
+window.onDragStart = function(e) {
+  draggedId = e.target.dataset.id;
+  e.target.classList.add('dragging');
+};
+window.onDragEnd = function(e) {
+  e.target.classList.remove('dragging');
+};
+window.onDragOver = function(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drop-target');
+};
+window.onDragLeave = function(e) {
+  e.currentTarget.classList.remove('drop-target');
+};
+window.onDrop = async function(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-target');
+  const newStatus = e.currentTarget.dataset.status;
+  if (!draggedId || !newStatus) return;
+  try {
+    await sb('PATCH', `/leads?id=eq.${draggedId}`, { status: newStatus });
+    const lead = leadsCache.find(l => l.id === draggedId);
+    if (lead) lead.status = newStatus;
+    await sb('POST', '/lead_interactions', {
+      lead_id: draggedId,
+      type: 'status_change',
+      content: `Movido para "${statusLabel(newStatus)}"`,
+      metadata: { new_status: newStatus },
+    });
+    toast('Status atualizado', 'success');
+    drawKanban();
+  } catch (err) {
+    toast('Erro: ' + err.message, 'error');
+  }
+};
+
+/* ============================================
+   PAGE: NEW SEARCH
+   ============================================ */
+async function renderNewSearch() {
+  renderLayout('', 'Nova Busca');
+  try {
+    const searches = await sb('GET', '/searches?select=*&order=created_at.desc&limit=20');
+    searchesCache = searches;
+    drawNewSearch();
+  } catch (e) {
+    drawNewSearch([]);
+    toast('Não consegui carregar histórico: ' + e.message, 'error');
+  }
+}
+
+function drawNewSearch() {
+  const historyHtml = searchesCache.length === 0
+    ? '<div style="color: var(--text-subtle); font-size: 13px; text-align: center; padding: 20px;">Nenhuma busca ainda</div>'
+    : searchesCache.map(s => `
+        <div class="search-history-row">
+          <div class="search-history-info">
+            <div class="search-history-query">${escapeHtml(s.query)}</div>
+            <div class="search-history-meta">${escapeHtml(s.location)} · ${fmtDate(s.created_at)}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px">
+            ${s.status === 'running' ? '<div class="spinner"></div>' : ''}
+            <span class="badge status-${s.status === 'completed' ? 'converted' : s.status === 'failed' ? 'lost' : 'contacted'}">${s.results_found ?? '·'} ${s.results_found === 1 ? 'lead' : 'leads'}</span>
+          </div>
+        </div>
+      `).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="form-grid">
+      <div class="card">
+        <div class="panel-title">Iniciar nova prospecção</div>
+        <div class="field">
+          <label class="label">Termo de busca</label>
+          <input class="input" id="ns-query" placeholder="ex: clínicas odontológicas, escritórios de advocacia..." />
+          <div class="field-help">O que você quer prospectar (categoria de negócio)</div>
+        </div>
+        <div class="field">
+          <label class="label">Localização</label>
+          <input class="input" id="ns-location" placeholder="ex: Brasília, Brazil" />
+          <div class="field-help">Cidade + país (em inglês). Apify usa esse campo pra filtrar geograficamente.</div>
+        </div>
+        <div class="field">
+          <label class="label">Quantidade de leads</label>
+          <div class="slider-row">
+            <input type="range" id="ns-count" min="5" max="200" value="50" oninput="document.getElementById('ns-count-val').textContent = this.value" />
+            <div class="slider-value" id="ns-count-val">50</div>
+          </div>
+          <div class="field-help">Custo Apify: ~U$ 4 por 1.000 leads. 50 leads ≈ U$ 0,20</div>
+        </div>
+        <button class="btn btn-primary" id="ns-submit" onclick="startSearch()" style="width: 100%; padding: 11px; justify-content: center; margin-top: 8px;">
+          Iniciar busca
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="panel-title">Histórico</div>
+        ${historyHtml}
+      </div>
+    </div>
+  `;
+}
+
+window.startSearch = async function() {
+  const query = document.getElementById('ns-query').value.trim();
+  const location = document.getElementById('ns-location').value.trim();
+  const maxResults = parseInt(document.getElementById('ns-count').value, 10);
+  if (!query || !location) { toast('Preencha termo e localização', 'error'); return; }
+  if (!config.webhookUrl) { toast('Configure o webhook do n8n nas Configurações', 'error'); return; }
+
+  const btn = document.getElementById('ns-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Buscando... (pode demorar 1-2min)';
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (config.webhookApiKey) headers['x-api-key'] = config.webhookApiKey;
+    const res = await fetch(config.webhookUrl, {
+      method: 'POST', headers,
+      body: JSON.stringify({ query, location, maxResults }),
+    });
+    if (!res.ok) throw new Error(`Webhook retornou ${res.status}`);
+    const data = await res.json();
+    toast(`✓ ${data.leads_imported || 0} leads importados`, 'success');
+    document.getElementById('ns-query').value = '';
+    document.getElementById('ns-location').value = '';
+    await renderNewSearch();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Iniciar busca';
+  }
+};
+
+/* ============================================
+   PAGE: SETTINGS
+   ============================================ */
+function renderSettings() {
+  renderLayout(`
+    <div class="card" style="max-width: 640px;">
+      <div class="panel-title">Configurações da Aplicação</div>
+      <div class="field">
+        <label class="label">Supabase URL</label>
+        <input class="input" id="cfg-url" value="${escapeHtml(config.supabaseUrl || '')}" />
+      </div>
+      <div class="field">
+        <label class="label">Supabase Anon Key</label>
+        <input class="input" id="cfg-key" value="${escapeHtml(config.supabaseAnonKey || '')}" type="password" />
+      </div>
+      <div class="field">
+        <label class="label">n8n Scrape Webhook URL</label>
+        <input class="input" id="cfg-webhook" value="${escapeHtml(config.webhookUrl || '')}" />
+        <div class="field-help">Workflow: Lead Scraper - Google Maps</div>
+      </div>
+      <div class="field">
+        <label class="label">n8n Qualify Webhook URL <span class="ai-badge" style="margin-left: 6px;">IA</span></label>
+        <input class="input" id="cfg-qualify-webhook" value="${escapeHtml(config.qualifyWebhookUrl || '')}" />
+        <div class="field-help">Workflow: Lead Qualifier - AI Agent</div>
+      </div>
+      <div class="field">
+        <label class="label">n8n Webhook API Key</label>
+        <input class="input" id="cfg-apikey" value="${escapeHtml(config.webhookApiKey || '')}" type="password" />
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button class="btn btn-primary" onclick="saveConfig()">Salvar</button>
+        <button class="btn btn-danger" onclick="resetConfig()">Resetar tudo</button>
+      </div>
+    </div>
+  `, 'Configurações');
+}
+
+window.resetConfig = function() {
+  if (!confirm('Resetar configurações para os valores padrão?')) return;
+  localStorage.setItem('crm_config', JSON.stringify(DEFAULT_CONFIG));
+  config = { ...DEFAULT_CONFIG };
+  toast('Configurações resetadas', 'success');
+  render();
+};
+
+/* ============================================
+   DRAWER (Lead detail)
+   ============================================ */
+let drawerLead = null;
+let drawerTab = 'info';
+
+window.openLeadDrawer = async function(id) {
+  const root = document.getElementById('drawer-root');
+  root.innerHTML = `
+    <div class="drawer-overlay open" onclick="closeDrawer()"></div>
+    <div class="drawer open">
+      <div style="padding: 80px 0; text-align: center;"><div class="spinner spinner-lg"></div></div>
+    </div>
+  `;
+  try {
+    const [leads, interactions, enrichments] = await Promise.all([
+      sb('GET', `/leads?id=eq.${id}&select=*`),
+      sb('GET', `/lead_interactions?lead_id=eq.${id}&select=*&order=created_at.desc`),
+      sb('GET', `/lead_enrichments?lead_id=eq.${id}&select=*&order=created_at.desc&limit=1`),
+    ]);
+    drawerLead = leads[0];
+    drawerLead._interactions = interactions || [];
+    drawerLead._enrichment = (enrichments || [])[0] || null;
+    drawDrawer();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+    closeDrawer();
+  }
+};
+
+window.closeDrawer = function() {
+  const root = document.getElementById('drawer-root');
+  const drawer = root.querySelector('.drawer');
+  const overlay = root.querySelector('.drawer-overlay');
+  if (drawer) drawer.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
+  setTimeout(() => { root.innerHTML = ''; }, 250);
+};
+
+window.switchTab = function(tab) { drawerTab = tab; drawDrawer(); };
+
+function drawDrawer() {
+  const l = drawerLead;
+  if (!l) return;
+
+  let tabContent = '';
+  if (drawerTab === 'info') {
+    const info = (label, val, isLink) => `
+      <div class="info-row">
+        <div class="info-label">${escapeHtml(label)}</div>
+        <div class="info-value ${val ? '' : 'empty'}">${val ? (isLink ? `<a href="${escapeHtml(val)}" target="_blank" rel="noopener">${escapeHtml(val)} ${ICON.external}</a>` : escapeHtml(val)) : '—'}</div>
+      </div>
+    `;
+    tabContent = `
+      ${info('Categoria', l.category)}
+      ${info('Telefone', fmtPhone(l.phone))}
+      ${info('WhatsApp', fmtPhone(l.whatsapp))}
+      ${info('Website', l.website, true)}
+      ${info('Email', l.email)}
+      ${info('Endereço', l.address)}
+      ${info('Cidade', `${l.city || ''}${l.state ? ' · ' + l.state : ''}${l.country ? ' · ' + l.country : ''}`.trim() || null)}
+      ${info('Avaliação', l.rating ? `${l.rating} ★ (${l.reviews_count || 0} reviews)` : null)}
+      ${info('Google Maps', l.google_url, true)}
+      ${info('Place ID', l.place_id)}
+      ${info('Adicionado em', fmtDate(l.created_at))}
+      ${info('Atualizado em', fmtDate(l.updated_at))}
+    `;
+  } else if (drawerTab === 'history') {
+    const ints = l._interactions || [];
+    if (ints.length === 0) {
+      tabContent = `<div class="empty-state"><div class="empty-state-icon">${ICON.empty}</div><div class="empty-state-desc">Nenhuma interação registrada ainda.</div></div>`;
+    } else {
+      tabContent = ints.map(i => `
+        <div class="interaction">
+          <div class="interaction-header">
+            <span class="interaction-type">${escapeHtml(i.type)}</span>
+            <span class="interaction-time">${fmtDate(i.created_at)}</span>
+          </div>
+          <div class="interaction-content">${escapeHtml(i.content || '')}</div>
+        </div>
+      `).join('');
+    }
+  } else if (drawerTab === 'insights') {
+    const en = l._enrichment;
+    if (!en || en.status !== 'completed') {
+      const isProcessing = en && en.status === 'processing';
+      const isFailed = en && en.status === 'failed';
+      tabContent = `
+        <div style="text-align: center; padding: 30px 20px;">
+          <div style="width: 56px; height: 56px; margin: 0 auto 14px; background: linear-gradient(135deg, var(--accent) 0%, #A78BFA 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px;">🧠</div>
+          <div style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">${isProcessing ? 'Qualificação em andamento...' : isFailed ? 'A última qualificação falhou' : 'Lead ainda não qualificado'}</div>
+          <div style="font-size: 13px; color: var(--text-muted); max-width: 340px; margin: 0 auto 18px;">${
+            isProcessing ? 'A IA tá analisando os dados desse lead. Recarregue em alguns segundos.' :
+            isFailed ? `Erro: ${escapeHtml(en.error_message || 'desconhecido')}. Você pode tentar de novo.` :
+            'Dispare a IA pra analisar essa clínica: pesquisar site, identificar dores, sugerir abordagem e calcular um score de match.'
+          }</div>
+          ${!isProcessing ? `<button class="qualify-btn" onclick="qualifyLead('${l.id}')">${ICON.search} ${isFailed ? 'Tentar novamente' : 'Qualificar com IA'}</button>` : '<div class="spinner spinner-lg"></div>'}
+        </div>
+      `;
+    } else {
+      const sizeTag = en.estimated_size ? `<span class="meta-tag meta-tag-strong">${escapeHtml(sizeLabel(en.estimated_size))}</span>` : '';
+      const matTag = en.digital_maturity ? `<span class="meta-tag">${escapeHtml(maturityLabel(en.digital_maturity))}</span>` : '';
+      const ageTag = `<span class="meta-tag">Analisado ${fmtDate(en.created_at)}</span>`;
+
+      tabContent = `
+        <div class="insights-score-card">
+          <div class="insights-score-row">
+            <div>
+              <div class="insights-score-label">Score IA</div>
+              <div class="insights-score-big" style="color: ${scoreColor(en.score)}">${en.score}<span style="font-size: 18px; color: var(--text-subtle); font-weight: 500"> / 100</span></div>
+            </div>
+            <div style="text-align: right;">
+              <span class="ai-badge">Powered by AI</span>
+              <div style="font-size: 11px; color: var(--text-subtle); margin-top: 6px;">${en.tokens_used || 0} tokens · $${(en.cost_usd || 0).toFixed(4)}</div>
+            </div>
+          </div>
+          <div class="score-bar"><div class="score-bar-fill" style="width: ${en.score}%; background: ${scoreColor(en.score)}"></div></div>
+          ${en.score_reason ? `<div style="margin-top: 12px; font-size: 13px; color: var(--text-muted); line-height: 1.55;">${escapeHtml(en.score_reason)}</div>` : ''}
+          <div class="insights-meta-tags">${sizeTag}${matTag}${ageTag}</div>
+        </div>
+
+        ${en.business_summary ? `
+          <div class="insights-section">
+            <div class="insights-section-title">📋 Resumo do Negócio</div>
+            <div class="insights-card" style="font-size: 13.5px; line-height: 1.6; color: var(--text);">${escapeHtml(en.business_summary)}</div>
+          </div>
+        ` : ''}
+
+        ${(en.pain_points && en.pain_points.length) ? `
+          <div class="insights-section">
+            <div class="insights-section-title">🩺 Dores Prováveis</div>
+            <div class="insights-card">
+              <ul class="bullet-list">
+                ${en.pain_points.map(p => `<li>${escapeHtml(p)}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+
+        ${en.suggested_approach ? `
+          <div class="insights-section">
+            <div class="insights-section-title">🎯 Abordagem Sugerida</div>
+            <div class="insights-card" style="font-size: 13.5px; line-height: 1.6; color: var(--text);">${escapeHtml(en.suggested_approach)}</div>
+          </div>
+        ` : ''}
+
+        ${(en.conversation_hooks && en.conversation_hooks.length) ? `
+          <div class="insights-section">
+            <div class="insights-section-title">💬 Ganchos de Conversa</div>
+            <div class="insights-card">
+              <ul class="bullet-list hooks">
+                ${en.conversation_hooks.map(h => `<li>${escapeHtml(h)}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+
+        ${(en.red_flags && en.red_flags.length) ? `
+          <div class="insights-section">
+            <div class="insights-section-title">🚩 Bandeiras Vermelhas</div>
+            <div class="insights-card">
+              <ul class="bullet-list flags">
+                ${en.red_flags.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="margin-top: 16px; display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="qualifyLead('${l.id}')">↻ Re-qualificar</button>
+        </div>
+      `;
+    }
+  } else if (drawerTab === 'note') {
+    tabContent = `
+      <textarea class="textarea" id="note-text" placeholder="Adicione uma nota sobre esse lead, próximos passos, contexto..." style="min-height: 140px;"></textarea>
+      <button class="btn btn-primary" onclick="addNote('${l.id}')" style="margin-top: 8px;">Adicionar nota</button>
+    `;
+  }
+
+  document.getElementById('drawer-root').innerHTML = `
+    <div class="drawer-overlay open" onclick="closeDrawer()"></div>
+    <div class="drawer open">
+      <div class="drawer-header">
+        <div style="flex: 1; min-width: 0;">
+          <div class="drawer-title">${escapeHtml(l.name)}</div>
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <span class="badge status-${l.status}"><span class="badge-dot"></span>${escapeHtml(statusLabel(l.status))}</span>
+            ${l.last_score != null ? renderScorePill(l.last_score) : ''}
+          </div>
+        </div>
+        <button class="drawer-close" onclick="closeDrawer()">${ICON.close}</button>
+      </div>
+      <div class="drawer-tabs">
+        <button class="drawer-tab ${drawerTab==='info'?'active':''}" onclick="switchTab('info')">Informações</button>
+        <button class="drawer-tab ${drawerTab==='insights'?'active':''}" onclick="switchTab('insights')">🧠 Insights</button>
+        <button class="drawer-tab ${drawerTab==='history'?'active':''}" onclick="switchTab('history')">Histórico</button>
+        <button class="drawer-tab ${drawerTab==='note'?'active':''}" onclick="switchTab('note')">+ Nota</button>
+      </div>
+      <div class="drawer-body">${tabContent}</div>
+    </div>
+  `;
+}
+
+window.qualifyLead = async function(leadId) {
+  if (!config.qualifyWebhookUrl) {
+    toast('Configure o webhook de qualificação nas Configurações', 'error');
+    return;
+  }
+  try {
+    drawerLead._enrichment = { status: 'processing', lead_id: leadId };
+    drawerTab = 'insights';
+    drawDrawer();
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (config.webhookApiKey) headers['x-api-key'] = config.webhookApiKey;
+
+    const res = await fetch(config.qualifyWebhookUrl, {
+      method: 'POST', headers,
+      body: JSON.stringify({ lead_id: leadId }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Webhook ${res.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Falha na qualificação');
+
+    toast(`✓ Qualificado! Score: ${data.score}/100`, 'success');
+
+    const [leads, enrichments] = await Promise.all([
+      sb('GET', `/leads?id=eq.${leadId}&select=*`),
+      sb('GET', `/lead_enrichments?lead_id=eq.${leadId}&select=*&order=created_at.desc&limit=1`),
+    ]);
+    drawerLead = leads[0];
+    drawerLead._enrichment = enrichments[0] || null;
+    drawerLead._interactions = await sb('GET', `/lead_interactions?lead_id=eq.${leadId}&select=*&order=created_at.desc`);
+
+    const cached = leadsCache.find(x => x.id === leadId);
+    if (cached) {
+      cached.last_score = drawerLead.last_score;
+      cached.last_qualified_at = drawerLead.last_qualified_at;
+    }
+
+    drawDrawer();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+    drawerLead._enrichment = { status: 'failed', error_message: e.message, lead_id: leadId };
+    drawDrawer();
+  }
+};
+
+window.addNote = async function(id) {
+  const text = document.getElementById('note-text').value.trim();
+  if (!text) { toast('Escreva alguma coisa', 'error'); return; }
+  try {
+    await sb('POST', '/lead_interactions', { lead_id: id, type: 'note', content: text });
+    toast('Nota adicionada', 'success');
+    drawerLead._interactions = await sb('GET', `/lead_interactions?lead_id=eq.${id}&select=*&order=created_at.desc`);
+    drawerTab = 'history';
+    drawDrawer();
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+};
+
+/* ============================================
+   ROUTER / RENDER
+   ============================================ */
+function render() {
+  if (!config) { renderSetup(); return; }
+  const hash = window.location.hash.slice(1) || 'dashboard';
+  currentRoute = hash;
+  if (hash === 'dashboard') renderDashboard();
+  else if (hash === 'leads') renderLeads();
+  else if (hash === 'kanban') renderKanban();
+  else if (hash === 'nova-busca') renderNewSearch();
+  else if (hash === 'config') renderSettings();
+  else renderDashboard();
+}
+
+// Boot
+render();
+</script>
+</body>
+</html>
